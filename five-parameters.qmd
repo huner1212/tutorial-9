@@ -11,4 +11,54 @@ execute:
 #| message: false
 library(tidyverse)
 library(primer.data)
+library(brms)
+library(tidybayes)
+library(gtsummary)
+```
+
+```{r}
+#| label: model
+#| cache: True
+df1 <- governors |> 
+  select(last_name, 
+         year, 
+         state, 
+         sex, 
+         lived_after, 
+         election_age)
+fit_all <- 
+  brm(data = df1, 
+      formula = lived_after ~ sex * election_age, 
+      silent = 2, 
+      refresh = 0, 
+      seed = 13)
+```
+
+```{r}
+#| label: plot
+ndata <- tibble(sex = c("Male", "Female"), 
+       election_age = 50)
+fit_all |> add_epred_draws(newdata = ndata) |>
+  ggplot(aes(.epred, fill = sex)) + 
+  geom_histogram(aes(y = after_stat(count/sum(count))), 
+                 alpha = 0.5, 
+                 bins = 100, 
+                 position = "identity") + 
+  scale_x_continuous(labels = scales::number_format(accuracy = 1)) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) + 
+  labs(title = "Posterior for Expected Years Lived Post-Election", 
+       subtitle = "Male candidates live longer", 
+       y = "Years", 
+       x = "Probability")
+```
+
+We analyzed the data and sorted it into a preceptor table containing the outcome, amount of time lived after the election, and the covariates sex age and age before election. one problem is that the life expectancy has changed, leaving part of the data irrelevant. this lowers our sample size, threatening to make the assumption of representativeness false. With 95% certainty, election age has a positive correlation on if the gender was male. One Qol was the election age, now this provided uncertainty due to it changing once a candidate ran again. this led more recent candidates to have older election age due to better health care.
+
+$$ lived\_after_i =  \beta_0 + \beta_1 male_i + \beta_2 c\_election\_age_i + 
+\\ \beta_3 male_i *  c\_election\_age_i + \epsilon_i $$
+
+
+```{r}
+#| label: data-visualization
+tbl_regression(fit_all, intercept = TRUE)
 ```
